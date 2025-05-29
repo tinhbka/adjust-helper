@@ -40,6 +40,5 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    compileOnly(libs.flutter.embedding.debug)
     implementation(libs.adjust.android)
 }
