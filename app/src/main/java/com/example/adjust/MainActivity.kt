@@ -1,6 +1,7 @@
 package com.example.adjust
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,11 +13,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.adjust.ui.theme.AdjustTheme
+import com.vtn.adjust_kit.AdjustBridge
+import com.vtn.adjust_kit.model.FullAdsOption
 
 class MainActivity : ComponentActivity() {
+    private fun initAdjust() {
+        AdjustBridge.apply {
+            appToken = "ll2x0zf75wqo"
+            environment = "sandbox"
+            fullAdsOption = FullAdsOption()
+            apiToken = "y8URWesoZ2FJ-usa-kD3"
+            fullAdCallback = { isFullAds, network, fromCache ->
+                Log.i(
+                    "AdjustFullAdCallback",
+                    "isFullAds: $isFullAds, network: $network, fromCache: $fromCache"
+                )
+            }
+            impressionEventToken = "gdxcgx"
+        }
+        AdjustBridge.initialize(
+            applicationContext
+        )
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        initAdjust()
         setContent {
             AdjustTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->

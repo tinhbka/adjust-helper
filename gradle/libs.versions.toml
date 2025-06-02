@@ -2,6 +2,7 @@
 adjustAndroid = "5.4.0"
 agp = "8.10.0"
 flutter_embedding_debug = "1.0.0"
+flutter_embedding_debugVersion = "1.0.0-cf56914b326edb0ccb123ffdc60f00060bd513fa"
 installreferrer = "2.2"
 kotlin = "2.0.21"
 coreKtx = "1.10.1"
@@ -13,12 +14,15 @@ activityCompose = "1.10.1"
 composeBom = "2024.09.00"
 appcompat = "1.7.0"
 material = "1.10.0"
+okhttp = "4.12.0"
 playServicesAdsIdentifier = "18.2.0"
+playServicesAdsIdentifierVersion = "18.0.1"
 
 [libraries]
 adjust-android = { module = "com.adjust.sdk:adjust-android", version.ref = "adjustAndroid" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 flutter_embedding_debug = { module = "io.flutter:flutter_embedding_debug", version.ref = "flutter_embedding_debug" }
+flutter_embedding_debug-v100cf56914b326edb0ccb123ffdc60f00060bd513fa = { module = "io.flutter:flutter_embedding_debug", version.ref = "flutter_embedding_debugVersion" }
 installreferrer = { module = "com.android.installreferrer:installreferrer", version.ref = "installreferrer" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -35,7 +39,9 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 play-services-ads-identifier = { module = "com.google.android.gms:play-services-ads-identifier", version.ref = "playServicesAdsIdentifier" }
+play-services-ads-identifier-v1801 = { module = "com.google.android.gms:play-services-ads-identifier", version.ref = "playServicesAdsIdentifierVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

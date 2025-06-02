@@ -40,5 +40,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     implementation(libs.adjust.android)
-    compileOnly("io.flutter:flutter_embedding_debug:1.0.0-cf56914b326edb0ccb123ffdc60f00060bd513fa")
+    compileOnly(libs.flutter.embedding.debug.v100cf56914b326edb0ccb123ffdc60f00060bd513fa)
+    implementation(libs.okhttp)
+    implementation(libs.play.services.ads.identifier.v1801)
 }
