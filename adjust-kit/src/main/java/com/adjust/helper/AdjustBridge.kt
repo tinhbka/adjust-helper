@@ -87,12 +87,15 @@ object AdjustBridge {
     }
 
     fun trackSubscriptionRevenue(
-        token: String,
         price: Double,
         currencyCode: String,
         productId: String,
     ) {
-        if (!isInitialized()) return
+        val token = iapOptions?.productRevenueTokens?.get(productId)
+        if (token == null) {
+            Log.e(TAG, "Event token not found for product: $productId")
+            return
+        }
         val event = AdjustEvent(token).apply {
             setRevenue(price, currencyCode)
             setProductId(productId)
@@ -100,6 +103,22 @@ object AdjustBridge {
         trackEvent(event)
     }
 
+    fun trackTotalIapRevenue(
+        price: Double,
+        currencyCode: String,
+        productId: String,
+    ) {
+        val token = iapOptions?.totalRevenueToken
+        if (token == null) {
+            Log.e(TAG, "Event token not found for total revenue")
+            return
+        }
+        val event = AdjustEvent(token).apply {
+            setRevenue(price, currencyCode)
+            setProductId(productId)
+        }
+        trackEvent(event)
+    }
 
     fun trackEvent(event: AdjustEvent) {
         if (!isInitialized()) return
