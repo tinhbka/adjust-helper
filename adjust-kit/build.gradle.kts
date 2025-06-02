@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.adjust_kit"
+    namespace = "com.adjust.helper"
     compileSdk = 35
 
     defaultConfig {

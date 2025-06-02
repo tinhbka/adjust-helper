@@ -1,4 +1,4 @@
-package com.vtn.adjust_kit
+package com.adjust.helper
 
 import android.content.Context
 import com.google.android.gms.ads.identifier.AdvertisingIdClient

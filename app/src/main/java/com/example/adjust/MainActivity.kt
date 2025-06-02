@@ -12,9 +12,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.adjust.helper.AdjustBridge
+import com.adjust.helper.model.FullAdsOption
 import com.example.adjust.ui.theme.AdjustTheme
-import com.vtn.adjust_kit.AdjustBridge
-import com.vtn.adjust_kit.model.FullAdsOption
 
 class MainActivity : ComponentActivity() {
     private fun initAdjust() {
@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
             applicationContext
         )
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

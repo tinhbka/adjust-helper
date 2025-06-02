@@ -1,7 +1,7 @@
-package com.vtn.adjust_kit
+package com.adjust.helper
 
 import android.util.Log
-import com.vtn.adjust_kit.model.AdjustDeviceResponse
+import com.adjust.helper.model.AdjustDeviceResponse
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject

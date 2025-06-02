@@ -1,4 +1,4 @@
-package com.vtn.adjust_kit
+package com.adjust.helper
 
 import com.adjust.sdk.AdjustEvent
 

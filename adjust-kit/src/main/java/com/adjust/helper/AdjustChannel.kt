@@ -1,7 +1,7 @@
-package com.vtn.adjust_kit
+package com.adjust.helper
 
 import android.content.Context
-import com.vtn.adjust_kit.model.FullAdsOption
+import com.adjust.helper.model.FullAdsOption
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel

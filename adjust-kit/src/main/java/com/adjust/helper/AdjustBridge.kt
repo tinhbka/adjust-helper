@@ -1,15 +1,15 @@
-package com.vtn.adjust_kit
+package com.adjust.helper
 
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
+import com.adjust.helper.model.FullAdsOption
 import com.adjust.sdk.Adjust
 import com.adjust.sdk.AdjustAdRevenue
 import com.adjust.sdk.AdjustAttribution
 import com.adjust.sdk.AdjustConfig
 import com.adjust.sdk.AdjustEvent
-import com.vtn.adjust_kit.model.FullAdsOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -76,6 +76,7 @@ object AdjustBridge {
     }
 
     fun trackImpressionEvent(value: Double, currencyCode: String) {
+        if (!isInitialized()) return
         impressionEventToken?.let {
             val event = AdjustEvent(it).apply {
                 setRevenue(value, currencyCode)

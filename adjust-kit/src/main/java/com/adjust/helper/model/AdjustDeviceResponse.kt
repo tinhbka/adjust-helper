@@ -1,4 +1,4 @@
-package com.vtn.adjust_kit.model
+package com.adjust.helper.model
 
 import org.json.JSONObject
 
