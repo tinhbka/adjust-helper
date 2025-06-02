@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
+import com.adjust.helper.model.AdOptions
 import com.adjust.helper.model.FullAdsOption
+import com.adjust.helper.model.IapOptions
 import com.adjust.sdk.Adjust
 import com.adjust.sdk.AdjustAdRevenue
 import com.adjust.sdk.AdjustAttribution
@@ -14,7 +16,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-typealias FullAdCallback = (isFullAds: Boolean, network: String?, fromCache: Boolean) -> Unit
 
 object AdjustBridge {
 
@@ -26,9 +27,9 @@ object AdjustBridge {
     var appToken: String? = null
     var environment: String? = null
     var apiToken: String? = null
-    var impressionEventToken: String? = null
     var fullAdsOption = FullAdsOption()
-    var fullAdCallback: FullAdCallback? = null
+    var iapOptions: IapOptions? = null
+    var adOptions: AdOptions? = null
 
     fun isInitialized(): Boolean {
         if (!isInitialized) {
@@ -55,7 +56,7 @@ object AdjustBridge {
 
         if (cachedNetwork == null) {
             callAdjustApi(context)
-            fullAdCallback?.let {
+            adOptions?.fullAdCallback?.let {
                 config.setOnAttributionChangedListener { attribution ->
                     handleAttribution(attribution)
                 }
@@ -77,12 +78,26 @@ object AdjustBridge {
 
     fun trackImpressionEvent(value: Double, currencyCode: String) {
         if (!isInitialized()) return
-        impressionEventToken?.let {
+        adOptions?.impressionToken?.let {
             val event = AdjustEvent(it).apply {
                 setRevenue(value, currencyCode)
             }
             trackEvent(event)
         }
+    }
+
+    fun trackSubscriptionRevenue(
+        token: String,
+        price: Double,
+        currencyCode: String,
+        productId: String,
+    ) {
+        if (!isInitialized()) return
+        val event = AdjustEvent(token).apply {
+            setRevenue(price, currencyCode)
+            setProductId(productId)
+        }
+        trackEvent(event)
     }
 
 
@@ -124,6 +139,6 @@ object AdjustBridge {
 
     private fun callAdCallback(network: String?, fromCache: Boolean) {
         val isFullAds = network.isFullAds()
-        fullAdCallback?.invoke(isFullAds, network, fromCache)
+        adOptions?.fullAdCallback?.invoke(isFullAds, network, fromCache)
     }
 }

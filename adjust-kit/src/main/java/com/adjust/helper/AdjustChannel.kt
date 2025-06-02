@@ -1,7 +1,9 @@
 package com.adjust.helper
 
 import android.content.Context
+import com.adjust.helper.model.AdOptions
 import com.adjust.helper.model.FullAdsOption
+import com.adjust.helper.model.IapOptions
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -27,17 +29,22 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                         this.appToken = appToken
                         this.fullAdsOption = FullAdsOption.fromMap(fullAdsOption ?: emptyMap())
                         this.apiToken = call.argument<String>("apiToken")
-                        this.impressionEventToken = call.argument<String>("impressionEventToken")
-                        this.fullAdCallback = { isFullAds, network, fromCache ->
-                            channel.invokeMethod(
-                                "fullAdCallback",
-                                mapOf(
-                                    "isFullAds" to isFullAds,
-                                    "network" to network,
-                                    "fromCache" to fromCache
+                        this.adOptions = AdOptions(
+                            impressionToken = call.argument<String>("impressionToken"),
+                            fullAdCallback = { isFullAds, network, fromCache ->
+                                channel.invokeMethod(
+                                    "fullAdCallback",
+                                    mapOf(
+                                        "isFullAds" to isFullAds,
+                                        "network" to network,
+                                        "fromCache" to fromCache
+                                    )
                                 )
-                            )
-                        }
+                            }
+                        )
+                        this.iapOptions = IapOptions.fromMap(
+                            call.argument<Map<String, Any?>>("iapOptions") ?: emptyMap()
+                        )
                     }
 
                     AdjustBridge.initialize(

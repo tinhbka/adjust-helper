@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.adjust.helper.AdjustBridge
+import com.adjust.helper.model.AdOptions
 import com.adjust.helper.model.FullAdsOption
 import com.example.adjust.ui.theme.AdjustTheme
 
@@ -23,13 +24,15 @@ class MainActivity : ComponentActivity() {
             environment = "sandbox"
             fullAdsOption = FullAdsOption()
             apiToken = "y8URWesoZ2FJ-usa-kD3"
-            fullAdCallback = { isFullAds, network, fromCache ->
-                Log.i(
-                    "AdjustFullAdCallback",
-                    "isFullAds: $isFullAds, network: $network, fromCache: $fromCache"
-                )
-            }
-            impressionEventToken = "gdxcgx"
+            adOptions = AdOptions(
+                impressionToken = "gdxcgx",
+                fullAdCallback = { isFullAds, network, fromCache ->
+                    Log.i(
+                        "AdjustFullAdCallback",
+                        "isFullAds: $isFullAds, network: $network, fromCache: $fromCache"
+                    )
+                }
+            )
         }
         AdjustBridge.initialize(
             applicationContext
