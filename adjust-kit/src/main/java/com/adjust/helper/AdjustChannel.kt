@@ -2,26 +2,16 @@ package com.adjust.helper
 
 import android.content.Context
 import com.adjust.helper.model.FullAdsOption
-import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-class AdjustChannel : FlutterPlugin, MethodChannel.MethodCallHandler {
-    private var channel: MethodChannel? = null
-    private var applicationContext: Context? = null
-    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        applicationContext = binding.applicationContext
-        channel = MethodChannel(binding.binaryMessenger, "com.adjust.sdk/api")
-        channel!!.setMethodCallHandler(this)
-    }
+class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
+    MethodChannel.MethodCallHandler {
+    private val channel = MethodChannel(messenger, "com.adjust.sdk/api")
 
-    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        applicationContext = null
-        if (channel != null) {
-            channel!!.setMethodCallHandler(null)
-        }
-        channel = null
-
+    init {
+        channel.setMethodCallHandler(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -39,7 +29,7 @@ class AdjustChannel : FlutterPlugin, MethodChannel.MethodCallHandler {
                         this.apiToken = call.argument<String>("apiToken")
                         this.impressionEventToken = call.argument<String>("impressionEventToken")
                         this.fullAdCallback = { isFullAds, network, fromCache ->
-                            channel?.invokeMethod(
+                            channel.invokeMethod(
                                 "fullAdCallback",
                                 mapOf(
                                     "isFullAds" to isFullAds,
@@ -51,7 +41,7 @@ class AdjustChannel : FlutterPlugin, MethodChannel.MethodCallHandler {
                     }
 
                     AdjustBridge.initialize(
-                        applicationContext!!
+                        context
                     )
                     result.success(null)
                 } else {
