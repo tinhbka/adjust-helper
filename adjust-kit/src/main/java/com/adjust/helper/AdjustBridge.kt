@@ -23,7 +23,6 @@ object AdjustBridge {
 
     private var isInitialized = false
     private var preferences: SharedPreferences? = null
-    private var isFullAdFromApi = false
     var appToken: String? = null
     var environment: String? = null
     var apiToken: String? = null
@@ -136,14 +135,12 @@ object AdjustBridge {
 
             val response = ApiClient().inspectDevice(appToken!!, advertisingId)
             val network = response.trackerName
-            isFullAdFromApi = network.isFullAds()
             preferences?.edit { putString("ad_network", network.savableName()) }
             callAdCallback(network, fromCache = false, fromLib = false, fromApi = true)
         }
     }
 
     private fun handleAttribution(attribution: AdjustAttribution) {
-        if (isFullAdFromApi) return
         val network = attribution.network
         Log.d(TAG, "Network from callback: $network")
         preferences?.edit { putString("ad_network", network.savableName()) }
