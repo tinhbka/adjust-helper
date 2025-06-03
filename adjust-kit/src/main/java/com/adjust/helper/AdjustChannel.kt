@@ -31,13 +31,15 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                         this.apiToken = call.argument<String>("apiToken")
                         this.adOptions = AdOptions(
                             impressionToken = call.argument<String>("impressionToken"),
-                            fullAdCallback = { isFullAds, network, fromCache ->
+                            fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi ->
                                 channel.invokeMethod(
                                     "fullAdCallback",
                                     mapOf(
                                         "isFullAds" to isFullAds,
                                         "network" to network,
-                                        "fromCache" to fromCache
+                                        "fromCache" to fromCache,
+                                        "fromLib" to fromLib,
+                                        "fromApi" to fromApi
                                     )
                                 )
                             }

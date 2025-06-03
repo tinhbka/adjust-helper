@@ -138,7 +138,7 @@ object AdjustBridge {
             val network = response.trackerName
             isFullAdFromApi = network.isFullAds()
             preferences?.edit { putString("ad_network", network.savableName()) }
-            callAdCallback(network, false)
+            callAdCallback(network, fromCache = false, fromLib = false, fromApi = true)
         }
     }
 
@@ -147,17 +147,19 @@ object AdjustBridge {
         val network = attribution.network
         Log.d(TAG, "Network from callback: $network")
         preferences?.edit { putString("ad_network", network.savableName()) }
-        callAdCallback(network, false)
+        callAdCallback(network, fromCache = false, fromLib = true, fromApi = false)
     }
 
     private fun checkCachedAdNetwork() {
         val cached = preferences?.getString("ad_network", null)
         Log.d(TAG, "Network from cache: $cached")
-        callAdCallback(cached.toOriginal(), true)
+        callAdCallback(cached.toOriginal(), fromCache = true, fromLib = false, fromApi = false)
     }
 
-    private fun callAdCallback(network: String?, fromCache: Boolean) {
+    private fun callAdCallback(
+        network: String?, fromCache: Boolean, fromLib: Boolean, fromApi: Boolean
+    ) {
         val isFullAds = network.isFullAds()
-        adOptions?.fullAdCallback?.invoke(isFullAds, network, fromCache)
+        adOptions?.fullAdCallback?.invoke(isFullAds, network, fromCache, fromLib, fromApi)
     }
 }
