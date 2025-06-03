@@ -150,6 +150,10 @@ object AdjustBridge {
     private fun checkCachedAdNetwork() {
         val cached = preferences?.getString("ad_network", null)
         Log.d(TAG, "Network from cache: $cached")
+        if (cached.isNullOrEmpty()) {
+            Log.d(TAG, "No cached ad network found")
+            return
+        }
         callAdCallback(cached.toOriginal(), fromCache = true, fromLib = false, fromApi = false)
     }
 
