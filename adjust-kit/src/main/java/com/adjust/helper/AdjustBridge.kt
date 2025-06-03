@@ -15,6 +15,7 @@ import com.adjust.sdk.AdjustEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 object AdjustBridge {
@@ -136,8 +137,11 @@ object AdjustBridge {
 
                 val response = ApiClient().inspectDevice(appToken!!, advertisingId)
                 val network = response.trackerName
-                preferences?.edit { putString("ad_network", network.savableName()) }
-                callAdCallback(network, fromCache = false, fromLib = false, fromApi = true)
+
+                withContext(Dispatchers.Main) {
+                    preferences?.edit { putString("ad_network", network.savableName()) }
+                    callAdCallback(network, fromCache = false, fromLib = false, fromApi = true)
+                }
             } catch (e: Exception) {
                 Log.e("CoroutineError", "Caught: ${e.message}")
             }
