@@ -128,15 +128,19 @@ object AdjustBridge {
         if (apiToken == null || appToken == null) return
 
         CoroutineScope(Dispatchers.IO).launch {
-            val advertisingId = AdvertisingIdUtil.getAdvertisingId(context) ?: run {
-                Log.e(TAG, "Advertising ID is null")
-                return@launch
-            }
+            try {
+                val advertisingId = AdvertisingIdUtil.getAdvertisingId(context) ?: run {
+                    Log.e(TAG, "Advertising ID is null")
+                    return@launch
+                }
 
-            val response = ApiClient().inspectDevice(appToken!!, advertisingId)
-            val network = response.trackerName
-            preferences?.edit { putString("ad_network", network.savableName()) }
-            callAdCallback(network, fromCache = false, fromLib = false, fromApi = true)
+                val response = ApiClient().inspectDevice(appToken!!, advertisingId)
+                val network = response.trackerName
+                preferences?.edit { putString("ad_network", network.savableName()) }
+                callAdCallback(network, fromCache = false, fromLib = false, fromApi = true)
+            } catch (e: Exception) {
+                Log.e("CoroutineError", "Caught: ${e.message}")
+            }
         }
     }
 

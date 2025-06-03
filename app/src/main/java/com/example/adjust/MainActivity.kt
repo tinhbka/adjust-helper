@@ -26,10 +26,10 @@ class MainActivity : ComponentActivity() {
             apiToken = "y8URWesoZ2FJ-usa-kD3"
             adOptions = AdOptions(
                 impressionToken = "gdxcgx",
-                fullAdCallback = { isFullAds, network, fromCache ->
+                fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi ->
                     Log.i(
                         "AdjustFullAdCallback",
-                        "isFullAds: $isFullAds, network: $network, fromCache: $fromCache"
+                        "isFullAds: $isFullAds, network: $network, fromCache: $fromCache",
                     )
                 }
             )
