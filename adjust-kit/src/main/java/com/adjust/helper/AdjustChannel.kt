@@ -29,6 +29,12 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
         })
     }
 
+    fun dispose() {
+        eventSink = null
+        eventChannel.setStreamHandler(null)
+        channel.setMethodCallHandler(null)
+    }
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "initSdk" -> {
