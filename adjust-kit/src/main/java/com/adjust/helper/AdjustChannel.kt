@@ -1,6 +1,8 @@
 package com.adjust.helper
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.adjust.helper.model.AdOptions
 import com.adjust.helper.model.FullAdsOption
 import com.adjust.helper.model.IapOptions
@@ -11,6 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
     MethodChannel.MethodCallHandler {
     private val channel = MethodChannel(messenger, "com.adjust.sdk/api")
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     init {
         channel.setMethodCallHandler(this)
@@ -32,16 +35,18 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                         this.adOptions = AdOptions(
                             impressionToken = call.argument<String>("impressionToken"),
                             fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi ->
-                                channel.invokeMethod(
-                                    "onFullAdCallback",
-                                    mapOf(
-                                        "isFullAds" to isFullAds,
-                                        "network" to network,
-                                        "fromCache" to fromCache,
-                                        "fromLib" to fromLib,
-                                        "fromApi" to fromApi
-                                    ),
-                                )
+                                mainHandler.post {
+                                    channel.invokeMethod(
+                                        "onFullAdCallback",
+                                        mapOf(
+                                            "isFullAds" to isFullAds,
+                                            "network" to network,
+                                            "fromCache" to fromCache,
+                                            "fromLib" to fromLib,
+                                            "fromApi" to fromApi
+                                        )
+                                    )
+                                }
                             }
                         )
                         this.iapOptions = IapOptions.fromMap(
