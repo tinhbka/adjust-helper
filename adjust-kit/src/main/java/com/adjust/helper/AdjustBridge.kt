@@ -31,6 +31,8 @@ object AdjustBridge {
     var iapOptions: IapOptions? = null
     var adOptions: AdOptions? = null
 
+    var fullAdFromApi = false
+
     fun isInitialized(): Boolean {
         if (!isInitialized) {
             Log.e(TAG, "AdjustUtil is not initialized")
@@ -61,8 +63,14 @@ object AdjustBridge {
                     handleAttribution(attribution)
                 }
             }
+        } else {
+            callAdCallback(
+                cachedNetwork.toOriginal(),
+                fromCache = true,
+                fromLib = false,
+                fromApi = false,
+            )
         }
-        checkCachedAdNetwork()
         Adjust.initSdk(config)
 
         isInitialized = true
@@ -136,7 +144,11 @@ object AdjustBridge {
                 }
 
                 val response = ApiClient().inspectDevice(appToken!!, advertisingId)
+                if (response.errorMessage != null) {
+                    return@launch
+                }
                 val network = response.trackerName
+                fullAdFromApi = network.isFullAds()
 
                 withContext(Dispatchers.Main) {
                     preferences?.edit { putString("ad_network", network.savableName()) }
@@ -149,20 +161,13 @@ object AdjustBridge {
     }
 
     private fun handleAttribution(attribution: AdjustAttribution) {
+        if (fullAdFromApi) {
+            return
+        }
         val network = attribution.network
         Log.d(TAG, "Network from callback: $network")
         preferences?.edit { putString("ad_network", network.savableName()) }
         callAdCallback(network, fromCache = false, fromLib = true, fromApi = false)
-    }
-
-    private fun checkCachedAdNetwork() {
-        val cached = preferences?.getString("ad_network", null)
-        Log.d(TAG, "Network from cache: $cached")
-        if (cached.isNullOrEmpty()) {
-            Log.d(TAG, "No cached ad network found")
-            return
-        }
-        callAdCallback(cached.toOriginal(), fromCache = true, fromLib = false, fromApi = false)
     }
 
     private fun callAdCallback(

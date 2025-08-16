@@ -5,7 +5,6 @@ import com.adjust.helper.model.AdOptions
 import com.adjust.helper.model.FullAdsOption
 import com.adjust.helper.model.IapOptions
 import io.flutter.plugin.common.BinaryMessenger
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -13,26 +12,8 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
     MethodChannel.MethodCallHandler {
     private val channel = MethodChannel(messenger, "com.adjust.sdk/api")
 
-    private var eventSink: EventChannel.EventSink? = null
-    private val eventChannel = EventChannel(messenger, "com.adjust.sdk/events")
-
     init {
         channel.setMethodCallHandler(this)
-        eventChannel.setStreamHandler(object : EventChannel.StreamHandler {
-            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                eventSink = events
-            }
-
-            override fun onCancel(arguments: Any?) {
-                eventSink = null
-            }
-        })
-    }
-
-    fun dispose() {
-        eventSink = null
-        eventChannel.setStreamHandler(null)
-        channel.setMethodCallHandler(null)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -51,14 +32,15 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                         this.adOptions = AdOptions(
                             impressionToken = call.argument<String>("impressionToken"),
                             fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi ->
-                                eventSink?.success(
+                                channel.invokeMethod(
+                                    "onFullAdCallback",
                                     mapOf(
                                         "isFullAds" to isFullAds,
                                         "network" to network,
                                         "fromCache" to fromCache,
                                         "fromLib" to fromLib,
                                         "fromApi" to fromApi
-                                    )
+                                    ),
                                 )
                             }
                         )
