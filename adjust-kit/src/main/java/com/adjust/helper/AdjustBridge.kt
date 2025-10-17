@@ -12,6 +12,7 @@ import com.adjust.sdk.AdjustAdRevenue
 import com.adjust.sdk.AdjustAttribution
 import com.adjust.sdk.AdjustConfig
 import com.adjust.sdk.AdjustEvent
+import com.adjust.sdk.LogLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,6 +55,7 @@ object AdjustBridge {
         val cachedNetwork = preferences?.getString("ad_network", null)
         val config = AdjustConfig(context, this.appToken!!, environment).apply {
             enableSendingInBackground()
+            setLogLevel(LogLevel.VERBOSE)
         }
 
         if (cachedNetwork == null) {
