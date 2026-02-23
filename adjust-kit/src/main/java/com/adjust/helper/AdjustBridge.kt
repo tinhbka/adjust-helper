@@ -84,13 +84,19 @@ object AdjustBridge {
             setRevenue(value, currencyCode)
         }
         Adjust.trackAdRevenue(adRevenue)
-    }
 
-    fun trackImpressionEvent(value: Double, currencyCode: String) {
-        if (!isInitialized()) return
+        // Impression event
         adOptions?.impressionToken?.let {
             val event = AdjustEvent(it).apply {
                 setRevenue(value, currencyCode)
+            }
+            trackEvent(event)
+        }
+
+        // 80% revenue event
+        adOptions?.event80Token?.let {
+            val event = AdjustEvent(it).apply {
+                setRevenue(value * 0.8, currencyCode)
             }
             trackEvent(event)
         }

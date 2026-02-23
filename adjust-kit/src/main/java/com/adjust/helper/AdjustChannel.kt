@@ -34,6 +34,7 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                         this.apiToken = call.argument<String>("apiToken")
                         this.adOptions = AdOptions(
                             impressionToken = call.argument<String>("impressionToken"),
+                            event80Token = call.argument<String>("event80Token"),
                             fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi ->
                                 mainHandler.post {
                                     channel.invokeMethod(
@@ -71,17 +72,6 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                     result.success(null)
                 } else {
                     result.error("INVALID_ARGUMENT", "Value or Currency Code is null", null)
-                }
-            }
-
-            "trackImpressionEvent" -> {
-                val value = call.argument<Double>("value")
-                val currencyCode = call.argument<String>("currencyCode")
-                if (value != null && currencyCode != null) {
-                    AdjustBridge.trackImpressionEvent(value, currencyCode)
-                    result.success(null)
-                } else {
-                    result.error("INVALID_ARGUMENT", "Event Token is null", null)
                 }
             }
 
