@@ -40,31 +40,33 @@ fun String?.isOrganic(): Boolean {
 }
 
 fun Map<String, Any?>.toAdjustEvent(): AdjustEvent {
-    val eventToken =
-        this["eventToken"] as? String ?: throw IllegalArgumentException("eventToken is required")
+    val eventToken = this["eventToken"] as? String
+        ?: throw IllegalArgumentException("eventToken is required")
+
     val event = AdjustEvent(eventToken)
 
-    val clazz = AdjustEvent::class.java
-
-    fun setField(fieldName: String, value: Any?) {
-        try {
-            val field = clazz.getDeclaredField(fieldName)
-            field.isAccessible = true
-            field.set(event, value)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    // Xử lý Revenue
+    val revenue = this["revenue"] as? Double
+    val currency = this["currency"] as? String
+    if (revenue != null && currency != null) {
+        event.setRevenue(revenue, currency)
     }
 
-    setField("revenue", this["revenue"])
-    setField("currency", this["currency"])
-    setField("callbackParameters", this["callbackParameters"])
-    setField("partnerParameters", this["partnerParameters"])
-    setField("orderId", this["orderId"])
-    setField("deduplicationId", this["deduplicationId"])
-    setField("callbackId", this["callbackId"])
-    setField("productId", this["productId"])
-    setField("purchaseToken", this["purchaseToken"])
+    // Xử lý Parameters (ép kiểu sang Map<String, String>)
+    (this["callbackParameters"] as? Map<*, *>)?.forEach { (k, v) ->
+        event.addCallbackParameter(k.toString(), v.toString())
+    }
+
+    (this["partnerParameters"] as? Map<*, *>)?.forEach { (k, v) ->
+        event.addPartnerParameter(k.toString(), v.toString())
+    }
+
+    // Các field đơn giản khác
+    (this["orderId"] as? String)?.let { event.setOrderId(it) }
+    (this["callbackId"] as? String)?.let { event.setCallbackId(it) }
+    (this["productId"] as? String)?.let { event.setProductId(it) }
+    (this["purchaseToken"] as? String)?.let { event.setPurchaseToken(it) }
+    (this["deduplicationId"] as? String)?.let { event.setDeduplicationId(it) }
 
     return event
 }
