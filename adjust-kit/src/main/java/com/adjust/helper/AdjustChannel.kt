@@ -98,26 +98,18 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                 val price = call.argument<Double>("price")
                 val currencyCode = call.argument<String>("currencyCode")
                 val productId = call.argument<String>("productId")
+                val orderId = call.argument<String>("orderId")
+                val signature = call.argument<String>("signature")
+                val purchaseToken = call.argument<String>("purchaseToken")
+
 
                 if (price != null && currencyCode != null && productId != null) {
-                    AdjustBridge.trackSubscriptionRevenue(price, currencyCode, productId)
-                    result.success(null)
-                } else {
-                    result.error(
-                        "INVALID_ARGUMENT",
-                        "Price, Currency Code or Product ID is null",
-                        null
+                    AdjustBridge.trackSubscriptionRevenue(
+                        price, currencyCode, productId,
+                        orderId,
+                        signature,
+                        purchaseToken
                     )
-                }
-            }
-
-            "trackTotalIapRevenue" -> {
-                val price = call.argument<Double>("price")
-                val currencyCode = call.argument<String>("currencyCode")
-                val productId = call.argument<String>("productId")
-
-                if (price != null && currencyCode != null && productId != null) {
-                    AdjustBridge.trackTotalIapRevenue(price, currencyCode, productId)
                     result.success(null)
                 } else {
                     result.error(

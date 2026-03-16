@@ -12,6 +12,7 @@ import com.adjust.sdk.AdjustAdRevenue
 import com.adjust.sdk.AdjustAttribution
 import com.adjust.sdk.AdjustConfig
 import com.adjust.sdk.AdjustEvent
+import com.adjust.sdk.AdjustPlayStoreSubscription
 import com.adjust.sdk.LogLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -106,34 +107,44 @@ object AdjustBridge {
         price: Double,
         currencyCode: String,
         productId: String,
+        orderId: String?,
+        signature: String?,
+        purchaseToken: String?,
     ) {
-        val token = iapOptions?.productRevenueTokens?.get(productId)
-        if (token == null) {
-            Log.e(TAG, "Event token not found for product: $productId")
-            return
+        // Product revenue event
+        iapOptions?.productRevenueTokens?.get(productId)?.let {
+            val event = AdjustEvent(it).apply {
+                setRevenue(price, currencyCode)
+                setProductId(productId)
+                setOrderId(orderId)
+                setPurchaseToken(purchaseToken)
+            }
+            trackEvent(event)
         }
-        val event = AdjustEvent(token).apply {
-            setRevenue(price, currencyCode)
-            setProductId(productId)
-        }
-        trackEvent(event)
-    }
 
-    fun trackTotalIapRevenue(
-        price: Double,
-        currencyCode: String,
-        productId: String,
-    ) {
-        val token = iapOptions?.totalRevenueToken
-        if (token == null) {
-            Log.e(TAG, "Event token not found for total revenue")
-            return
+        // Total revenue event
+        iapOptions?.totalRevenueToken?.let {
+            val event = AdjustEvent(it).apply {
+                setRevenue(price, currencyCode)
+                setProductId(productId)
+                setOrderId(orderId)
+                setPurchaseToken(purchaseToken)
+            }
+            trackEvent(event)
         }
-        val event = AdjustEvent(token).apply {
-            setRevenue(price, currencyCode)
-            setProductId(productId)
-        }
-        trackEvent(event)
+
+        // Track Play Store subscription event
+        val subscription = AdjustPlayStoreSubscription(
+            price.toLong(),
+            currencyCode,
+            productId,
+            orderId,
+            signature,
+            purchaseToken
+        );
+
+        Adjust.trackPlayStoreSubscription(subscription)
+
     }
 
     fun trackEvent(event: AdjustEvent) {
