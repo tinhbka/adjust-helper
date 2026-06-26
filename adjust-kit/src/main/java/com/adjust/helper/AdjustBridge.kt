@@ -149,6 +149,15 @@ object AdjustBridge {
 
     fun trackEvent(event: AdjustEvent) {
         if (!isInitialized()) return
+        val eventJson = mapOf(
+            "eventToken" to event.eventToken,
+            "revenue" to event.revenue,
+            "productId" to event.productId,
+            "orderId" to event.orderId,
+            "purchaseToken" to event.purchaseToken,
+            "currency" to event.currency,
+        )
+        Log.d("[Adjust] trackEvent: ", eventJson.toString())
         Adjust.trackEvent(event)
     }
 
