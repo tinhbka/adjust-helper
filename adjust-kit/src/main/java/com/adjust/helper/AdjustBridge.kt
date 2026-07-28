@@ -104,9 +104,11 @@ object AdjustBridge {
     }
 
     /**
-     * Track subscription cho 2 trường hợp:
-     *  - [isFreeTrial] = true  -> user bắt đầu free trial   -> bắn event [IapOptions.freeTrialToken]
-     *  - [isFreeTrial] = false -> mua giá thật / auto-renew -> bắn event [IapOptions.subscriptionToken]
+     * Track subscription và bắn nhiều event Adjust:
+     *  - [isFreeTrial] = true  -> user bắt đầu free trial -> bắn [IapOptions.freeTrialToken] (không revenue).
+     *  - [isFreeTrial] = false -> mua giá thật / renew     -> bắn:
+     *        + event theo gói: [IapOptions.productRevenueTokens] map theo [productId] (vd tuần/tháng)
+     *        + event tổng:     [IapOptions.subscriptionToken] (mọi gói paid)
      *
      * Đồng thời luôn gửi [AdjustPlayStoreSubscription] để Adjust validate với Google
      * và tự track toàn bộ vòng đời (initial + trial-convert + renew) ở server.
@@ -128,20 +130,21 @@ object AdjustBridge {
     ) {
         if (!isInitialized()) return
 
-        // 1) Bắn custom event đúng trường hợp.
-        val eventToken =
-            if (isFreeTrial) iapOptions?.freeTrialToken else iapOptions?.subscriptionToken
-        eventToken?.let { token ->
-            val event = AdjustEvent(token).apply {
-                // Free trial chưa thu tiền -> không set revenue. Mua thật/renew -> set revenue.
-                if (!isFreeTrial) {
-                    setRevenue(price, currencyCode)
-                }
-                setProductId(productId)
-                orderId?.let { setOrderId(it) }
-                purchaseToken?.let { setPurchaseToken(it) }
+        // 1) Bắn (các) custom event tương ứng.
+        if (isFreeTrial) {
+            // Free trial chưa thu tiền -> không set revenue.
+            iapOptions?.freeTrialToken?.let {
+                fireSubscriptionEvent(it, null, currencyCode, productId, orderId, purchaseToken)
             }
-            trackEvent(event)
+        } else {
+            // Event theo từng gói (vd subscription week / month).
+            iapOptions?.productRevenueTokens?.get(productId)?.let {
+                fireSubscriptionEvent(it, price, currencyCode, productId, orderId, purchaseToken)
+            }
+            // Event tổng cho mọi gói paid.
+            iapOptions?.subscriptionToken?.let {
+                fireSubscriptionEvent(it, price, currencyCode, productId, orderId, purchaseToken)
+            }
         }
 
         // 2) Gửi Play Store subscription (price phải là MICROS).
@@ -156,6 +159,28 @@ object AdjustBridge {
         )
         purchaseTimeMillis?.let { subscription.purchaseTime = it }
         Adjust.trackPlayStoreSubscription(subscription)
+    }
+
+    private fun fireSubscriptionEvent(
+        token: String,
+        revenue: Double?,
+        currencyCode: String,
+        productId: String,
+        orderId: String?,
+        purchaseToken: String?,
+    ) {
+        val event = AdjustEvent(token).apply {
+            revenue?.let { setRevenue(it, currencyCode) }
+            setProductId(productId)
+            orderId?.let { setOrderId(it) }
+            purchaseToken?.let { setPurchaseToken(it) }
+        }
+        trackEvent(event)
+    }
+
+    /** Lấy Adjust ADID (bất đồng bộ ở SDK v5). Dùng làm khóa attribution S2S. */
+    fun getAdid(callback: (String?) -> Unit) {
+        Adjust.getAdid { adid -> callback(adid) }
     }
 
     fun trackEvent(event: AdjustEvent) {
