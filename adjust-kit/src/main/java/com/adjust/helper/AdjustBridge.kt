@@ -178,11 +178,6 @@ object AdjustBridge {
         trackEvent(event)
     }
 
-    /** Lấy Adjust ADID (bất đồng bộ ở SDK v5). Dùng làm khóa attribution S2S. */
-    fun getAdid(callback: (String?) -> Unit) {
-        Adjust.getAdid { adid -> callback(adid) }
-    }
-
     fun trackEvent(event: AdjustEvent) {
         if (!isInitialized()) return
         val eventJson = mapOf(

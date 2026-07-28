@@ -79,12 +79,6 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                 result.success(AdjustBridge.isInitialized())
             }
 
-            "getAdid" -> {
-                AdjustBridge.getAdid { adid ->
-                    mainHandler.post { result.success(adid) }
-                }
-            }
-
             "trackEvent" -> {
                 val callbackParams = (call.arguments as? Map<*, *>)
                 val typedCallbackParams = callbackParams?.mapNotNull {
