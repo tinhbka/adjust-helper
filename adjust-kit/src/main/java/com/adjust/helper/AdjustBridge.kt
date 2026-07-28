@@ -103,48 +103,59 @@ object AdjustBridge {
         }
     }
 
-    fun trackSubscriptionRevenue(
+    /**
+     * Track subscription cho 2 trường hợp:
+     *  - [isFreeTrial] = true  -> user bắt đầu free trial   -> bắn event [IapOptions.freeTrialToken]
+     *  - [isFreeTrial] = false -> mua giá thật / auto-renew -> bắn event [IapOptions.subscriptionToken]
+     *
+     * Đồng thời luôn gửi [AdjustPlayStoreSubscription] để Adjust validate với Google
+     * và tự track toàn bộ vòng đời (initial + trial-convert + renew) ở server.
+     *
+     * @param price giá ở ĐƠN VỊ CHÍNH (vd 4.99). Nội bộ tự đổi sang micros cho Adjust.
+     *              Với free trial nên truyền GIÁ THẬT của gói (sau trial) để Adjust
+     *              attribute doanh thu khi convert.
+     * @param purchaseTimeMillis thời điểm mua (ms) từ Google Play, optional.
+     */
+    fun trackSubscription(
         price: Double,
         currencyCode: String,
         productId: String,
         orderId: String?,
         signature: String?,
         purchaseToken: String?,
+        isFreeTrial: Boolean,
+        purchaseTimeMillis: Long? = null,
     ) {
-        // Product revenue event
-        iapOptions?.productRevenueTokens?.get(productId)?.let {
-            val event = AdjustEvent(it).apply {
-                setRevenue(price, currencyCode)
+        if (!isInitialized()) return
+
+        // 1) Bắn custom event đúng trường hợp.
+        val eventToken =
+            if (isFreeTrial) iapOptions?.freeTrialToken else iapOptions?.subscriptionToken
+        eventToken?.let { token ->
+            val event = AdjustEvent(token).apply {
+                // Free trial chưa thu tiền -> không set revenue. Mua thật/renew -> set revenue.
+                if (!isFreeTrial) {
+                    setRevenue(price, currencyCode)
+                }
                 setProductId(productId)
-                setOrderId(orderId)
-                setPurchaseToken(purchaseToken)
+                orderId?.let { setOrderId(it) }
+                purchaseToken?.let { setPurchaseToken(it) }
             }
             trackEvent(event)
         }
 
-        // Total revenue event
-        iapOptions?.totalRevenueToken?.let {
-            val event = AdjustEvent(it).apply {
-                setRevenue(price, currencyCode)
-                setProductId(productId)
-                setOrderId(orderId)
-                setPurchaseToken(purchaseToken)
-            }
-            trackEvent(event)
-        }
-
-        // Track Play Store subscription event
+        // 2) Gửi Play Store subscription (price phải là MICROS).
+        val priceMicros = (price * 1_000_000).toLong()
         val subscription = AdjustPlayStoreSubscription(
-            price.toLong(),
+            priceMicros,
             currencyCode,
             productId,
             orderId,
             signature,
-            purchaseToken
-        );
-
+            purchaseToken,
+        )
+        purchaseTimeMillis?.let { subscription.purchaseTime = it }
         Adjust.trackPlayStoreSubscription(subscription)
-
     }
 
     fun trackEvent(event: AdjustEvent) {

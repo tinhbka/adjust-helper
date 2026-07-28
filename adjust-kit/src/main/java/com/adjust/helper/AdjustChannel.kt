@@ -94,21 +94,25 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                 }
             }
 
-            "trackSubscriptionRevenue" -> {
+            "trackSubscription" -> {
                 val price = call.argument<Double>("price")
                 val currencyCode = call.argument<String>("currencyCode")
                 val productId = call.argument<String>("productId")
                 val orderId = call.argument<String>("orderId")
                 val signature = call.argument<String>("signature")
                 val purchaseToken = call.argument<String>("purchaseToken")
-
+                val isFreeTrial = call.argument<Boolean>("isFreeTrial") ?: false
+                // Dart int có thể về Integer hoặc Long -> đọc qua Number cho an toàn.
+                val purchaseTime = (call.argument<Any>("purchaseTime") as? Number)?.toLong()
 
                 if (price != null && currencyCode != null && productId != null) {
-                    AdjustBridge.trackSubscriptionRevenue(
+                    AdjustBridge.trackSubscription(
                         price, currencyCode, productId,
                         orderId,
                         signature,
-                        purchaseToken
+                        purchaseToken,
+                        isFreeTrial,
+                        purchaseTime,
                     )
                     result.success(null)
                 } else {
