@@ -12,7 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
     MethodChannel.MethodCallHandler {
-    private val channel = MethodChannel(messenger, "com.adjust.sdk/api")
+    private val channel = MethodChannel(messenger, "com.custom.adjust.sdk/api")
     private val mainHandler = Handler(Looper.getMainLooper())
 
     init {
@@ -121,6 +121,18 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                         "Price, Currency Code or Product ID is null",
                         null
                     )
+                }
+            }
+
+            "getAdid" -> {
+                AdjustBridge.getAdid { adid ->
+                    mainHandler.post { result.success(adid) }
+                }
+            }
+
+            "getGoogleAdId" -> {
+                AdjustBridge.getGoogleAdId(context) { googleAdId ->
+                    mainHandler.post { result.success(googleAdId) }
                 }
             }
 

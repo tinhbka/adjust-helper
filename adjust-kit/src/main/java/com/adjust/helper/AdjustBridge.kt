@@ -192,6 +192,32 @@ object AdjustBridge {
         Adjust.trackEvent(event)
     }
 
+    /**
+     * Lấy Adjust device ID (adid). Trả về async qua [callback] (có thể null nếu SDK
+     * chưa gán được adid).
+     */
+    fun getAdid(callback: (String?) -> Unit) {
+        if (!isInitialized()) {
+            callback(null)
+            return
+        }
+        Adjust.getAdid { adid ->
+            Log.d(TAG, "getAdid: $adid")
+            callback(adid)
+        }
+    }
+
+    /**
+     * Lấy Google Advertising ID (GAID). Trả về async qua [callback] (có thể null nếu
+     * user opt-out hoặc không lấy được).
+     */
+    fun getGoogleAdId(context: Context, callback: (String?) -> Unit) {
+        Adjust.getGoogleAdId(context) { googleAdId ->
+            Log.d(TAG, "getGoogleAdId: $googleAdId")
+            callback(googleAdId)
+        }
+    }
+
     private fun callAdjustApi(context: Context) {
         if (apiToken == null || appToken == null) return
 
