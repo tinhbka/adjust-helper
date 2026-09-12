@@ -7,6 +7,7 @@ import androidx.core.content.edit
 import com.adjust.helper.model.AdOptions
 import com.adjust.helper.model.FullAdsOption
 import com.adjust.helper.model.IapOptions
+import com.adjust.helper.model.InstallReferrerInfo
 import com.adjust.sdk.Adjust
 import com.adjust.sdk.AdjustAdRevenue
 import com.adjust.sdk.AdjustAttribution
@@ -34,6 +35,11 @@ object AdjustBridge {
     var adOptions: AdOptions? = null
 
     var fullAdFromApi = false
+    var fullAdFromReferrer = false
+
+    /** Kết quả Install Referrer lần đọc gần nhất (null nếu chưa đọc / tắt useReferrer). */
+    var installReferrer: InstallReferrerInfo? = null
+        private set
 
     fun isInitialized(): Boolean {
         if (!isInitialized) {
@@ -60,6 +66,7 @@ object AdjustBridge {
         }
 
         if (cachedNetwork == null) {
+            checkInstallReferrer(context)
             callAdjustApi(context)
             adOptions?.fullAdCallback?.let {
                 config.setOnAttributionChangedListener { attribution ->
@@ -72,6 +79,7 @@ object AdjustBridge {
                 fromCache = true,
                 fromLib = false,
                 fromApi = false,
+                fromReferrer = false,
             )
         }
         Adjust.initSdk(config)
@@ -234,14 +242,70 @@ object AdjustBridge {
                 }
                 val network = response.trackerName
                 fullAdFromApi = network.isFullAds()
+                if (fullAdFromReferrer && !fullAdFromApi) {
+                    Log.d(TAG, "API says '$network' but referrer already confirmed full ads, keep it")
+                    return@launch
+                }
 
                 withContext(Dispatchers.Main) {
                     preferences?.edit { putString("ad_network", network.savableName()) }
-                    callAdCallback(network, fromCache = false, fromLib = false, fromApi = true)
+                    callAdCallback(
+                        network, fromCache = false, fromLib = false, fromApi = true, fromReferrer = false
+                    )
                 }
             } catch (e: Exception) {
                 Log.e("CoroutineError", "Caught: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Đọc Google Play Install Referrer song song với API. Nếu referrer chứng tỏ
+     * install đến từ link / quảng cáo (gclid, adjust_reftag, utm_source khác
+     * google-play...) thì báo full ads ngay và cache lại; kết quả organic từ
+     * API / SDK sau đó sẽ không hạ xuống nữa. Nếu referrer organic hoặc không
+     * đọc được thì không làm gì, chờ API / SDK như cũ.
+     */
+    private fun checkInstallReferrer(context: Context) {
+        if (!fullAdsOption.useReferrer) return
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val info = InstallReferrerUtil.getInstallReferrer(context)
+                installReferrer = info
+                Log.d(
+                    TAG,
+                    "InstallReferrer: referrer=${info.referrer}, nonOrganic=${info.isNonOrganic}, error=${info.errorMessage}"
+                )
+                if (!info.isNonOrganic) return@launch
+                if (fullAdFromApi) return@launch // API đã kết luận full ads rồi
+
+                fullAdFromReferrer = true
+                val network = info.networkName
+                withContext(Dispatchers.Main) {
+                    preferences?.edit { putString("ad_network", network.savableName()) }
+                    callAdCallback(
+                        network, fromCache = false, fromLib = false, fromApi = false, fromReferrer = true
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "checkInstallReferrer failed: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Lấy Google Play Install Referrer (đã cache). Trả về async qua [callback].
+     */
+    fun getInstallReferrer(context: Context, callback: (InstallReferrerInfo) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val info = try {
+                InstallReferrerUtil.getInstallReferrer(context)
+            } catch (e: Exception) {
+                InstallReferrerInfo(null, errorMessage = "Exception: ${e.message}")
+            }
+            installReferrer = info
+            withContext(Dispatchers.Main) { callback(info) }
         }
     }
 
@@ -251,14 +315,22 @@ object AdjustBridge {
         }
         val network = attribution.network
         Log.d(TAG, "Network from callback: $network")
+        if (fullAdFromReferrer && !network.isFullAds()) {
+            Log.d(TAG, "SDK says '$network' but referrer already confirmed full ads, keep it")
+            return
+        }
         preferences?.edit { putString("ad_network", network.savableName()) }
-        callAdCallback(network, fromCache = false, fromLib = true, fromApi = false)
+        callAdCallback(network, fromCache = false, fromLib = true, fromApi = false, fromReferrer = false)
     }
 
     private fun callAdCallback(
-        network: String?, fromCache: Boolean, fromLib: Boolean, fromApi: Boolean
+        network: String?,
+        fromCache: Boolean,
+        fromLib: Boolean,
+        fromApi: Boolean,
+        fromReferrer: Boolean,
     ) {
         val isFullAds = network.isFullAds()
-        adOptions?.fullAdCallback?.invoke(isFullAds, network, fromCache, fromLib, fromApi)
+        adOptions?.fullAdCallback?.invoke(isFullAds, network, fromCache, fromLib, fromApi, fromReferrer)
     }
 }

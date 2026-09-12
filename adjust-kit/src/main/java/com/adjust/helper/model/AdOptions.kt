@@ -5,7 +5,8 @@ typealias FullAdCallback = (
     network: String?,
     fromCache: Boolean,
     fromLib: Boolean,
-    fromApi: Boolean
+    fromApi: Boolean,
+    fromReferrer: Boolean,
 ) -> Unit
 
 data class AdOptions(

@@ -35,7 +35,7 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                         this.adOptions = AdOptions(
                             impressionToken = call.argument<String>("impressionToken"),
                             event80Token = call.argument<String>("event80Token"),
-                            fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi ->
+                            fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi, fromReferrer ->
                                 mainHandler.post {
                                     channel.invokeMethod(
                                         "onFullAdCallback",
@@ -44,7 +44,8 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                                             "network" to network,
                                             "fromCache" to fromCache,
                                             "fromLib" to fromLib,
-                                            "fromApi" to fromApi
+                                            "fromApi" to fromApi,
+                                            "fromReferrer" to fromReferrer,
                                         )
                                     )
                                 }
@@ -133,6 +134,12 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
             "getGoogleAdId" -> {
                 AdjustBridge.getGoogleAdId(context) { googleAdId ->
                     mainHandler.post { result.success(googleAdId) }
+                }
+            }
+
+            "getInstallReferrer" -> {
+                AdjustBridge.getInstallReferrer(context) { info ->
+                    result.success(info.toMap())
                 }
             }
 

@@ -43,4 +43,5 @@ dependencies {
     compileOnly(libs.flutter.embedding.debug.v100cf56914b326edb0ccb123ffdc60f00060bd513fa)
     implementation(libs.okhttp)
     implementation(libs.play.services.ads.identifier.v1801)
+    implementation(libs.installreferrer)
 }
