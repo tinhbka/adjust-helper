@@ -28,6 +28,15 @@ data class InstallReferrerInfo(
     val paidClickKey: String? get() = PAID_KEYS.firstOrNull { params[it].isMeaningful() }
 
     /**
+     * Referrer có đủ thông tin để kết luận organic / non-organic hay không.
+     * false khi: đọc lỗi, chuỗi rỗng, hoặc chỉ toàn "(not set)". Khi đó nên
+     * fallback sang nguồn khác (Adjust) để quyết định full ads.
+     */
+    val isDecisive: Boolean
+        get() = errorMessage == null &&
+                (utmSource != null || utmMedium != null || paidClickKey != null)
+
+    /**
      * Referrer chứng tỏ install KHÔNG organic (đến từ 1 link/quảng cáo).
      *
      * Quy tắc:
@@ -66,6 +75,7 @@ data class InstallReferrerInfo(
         "utmMedium" to utmMedium,
         "utmCampaign" to utmCampaign,
         "paidClickKey" to paidClickKey,
+        "isDecisive" to isDecisive,
         "isNonOrganic" to isNonOrganic,
         "networkName" to networkName,
         "referrerClickTimestampSeconds" to referrerClickTimestampSeconds,

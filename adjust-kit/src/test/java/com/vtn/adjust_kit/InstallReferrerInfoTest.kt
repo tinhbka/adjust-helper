@@ -79,3 +79,34 @@ class InstallReferrerInfoTest {
         assertEquals("Google", info.utmSource)
     }
 }
+
+class InstallReferrerDecisiveTest {
+
+    @Test
+    fun `organic referrer is decisive and organic`() {
+        val info = InstallReferrerInfo("utm_source=google-play&utm_medium=organic")
+        assertTrue(info.isDecisive)
+        assertFalse(info.isNonOrganic)
+    }
+
+    @Test
+    fun `paid referrer is decisive and non organic`() {
+        val info = InstallReferrerInfo("gclid=abc&utm_source=google&utm_medium=cpc")
+        assertTrue(info.isDecisive)
+        assertTrue(info.isNonOrganic)
+    }
+
+    @Test
+    fun `error, empty and not-set referrers are not decisive`() {
+        assertFalse(InstallReferrerInfo(null, errorMessage = "SERVICE_UNAVAILABLE").isDecisive)
+        assertFalse(InstallReferrerInfo(null).isDecisive)
+        assertFalse(InstallReferrerInfo("").isDecisive)
+        assertFalse(InstallReferrerInfo("utm_source=(not%20set)&utm_medium=(not%20set)").isDecisive)
+    }
+
+    @Test
+    fun `error with referrer text is still not decisive`() {
+        val info = InstallReferrerInfo("gclid=abc", errorMessage = "READ_FAILED")
+        assertFalse(info.isDecisive)
+    }
+}
