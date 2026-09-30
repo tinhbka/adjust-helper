@@ -37,11 +37,11 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     testImplementation(libs.junit)
+    testImplementation(libs.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     implementation(libs.adjust.android)
     compileOnly(libs.flutter.embedding.debug.v100cf56914b326edb0ccb123ffdc60f00060bd513fa)
-    implementation(libs.okhttp)
     implementation(libs.play.services.ads.identifier.v1801)
     implementation(libs.installreferrer)
 }

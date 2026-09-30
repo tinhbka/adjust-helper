@@ -1,13 +1,15 @@
 package com.adjust.helper
 
 import android.content.Context
-import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
-import androidx.core.content.edit
+import androidx.core.content.pm.PackageInfoCompat
 import com.adjust.helper.model.AdOptions
-import com.adjust.helper.model.FullAdsOption
 import com.adjust.helper.model.IapOptions
-import com.adjust.helper.model.InstallReferrerInfo
+import com.adjust.helper.model.Option2Data
+import com.adjust.helper.model.SourceResult
 import com.adjust.sdk.Adjust
 import com.adjust.sdk.AdjustAdRevenue
 import com.adjust.sdk.AdjustAttribution
@@ -26,46 +28,21 @@ object AdjustBridge {
     private const val TAG = "AdjustUtil"
 
     private var isInitialized = false
-    private var preferences: SharedPreferences? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var classifier: SourceClassifier? = null
+
     var appToken: String? = null
     var environment: String? = null
-    var apiToken: String? = null
-    var fullAdsOption = FullAdsOption()
+    internal var timing = SourceClassifier.Timing()
     var iapOptions: IapOptions? = null
     var adOptions: AdOptions? = null
 
-    /**
-     * Kết quả full ads hiện tại. Nguồn quyết định:
-     *  - Install Referrer (ưu tiên) khi referrer đọc được và có kết luận.
-     *  - Fallback: tên network từ Adjust (API / SDK) qua [isFullAds] khi referrer
-     *    lỗi, rỗng, "(not set)" hoặc tắt [FullAdsOption.useReferrer].
-     */
-    @Volatile
-    var isFullAd = false
-        private set
+    /** Kết quả hiện tại (null nếu chưa initialize). */
+    val result: SourceResult? get() = classifier?.current
 
-    /** Tên network hiện biết từ Adjust (API ưu tiên hơn SDK). */
-    @Volatile
-    var network: String? = null
-        private set
+    val isPaid: Boolean get() = result?.isPaid == true
 
-    /** Kết quả Install Referrer lần đọc gần nhất (null nếu chưa đọc / tắt useReferrer). */
-    @Volatile
-    var installReferrer: InstallReferrerInfo? = null
-        private set
-
-    private enum class ReferrerState { PENDING, DECIDED, FALLBACK }
-
-    @Volatile
-    private var referrerState = ReferrerState.PENDING
-    private var networkFromApi = false
-    private var networkFromLib = false
-
-    private const val KEY_NETWORK = "ad_network"
-    private const val KEY_IS_FULL_AD = "is_full_ad"
-    private const val KEY_FULL_AD_SOURCE = "full_ad_source"
-    private const val SOURCE_REFERRER = "referrer"
-    private const val SOURCE_ADJUST = "adjust"
+    val network: String? get() = result?.network
 
     fun isInitialized(): Boolean {
         if (!isInitialized) {
@@ -84,47 +61,41 @@ object AdjustBridge {
             return
         }
 
-        this.preferences = context.getSharedPreferences("adjust_prefs", Context.MODE_PRIVATE)
-        val prefs = preferences!!
-        val config = AdjustConfig(context, this.appToken!!, environment).apply {
+        val app = context.applicationContext
+        val config = AdjustConfig(app, this.appToken!!, environment).apply {
             enableSendingInBackground()
             setLogLevel(LogLevel.VERBOSE)
+            // Luôn nghe, kể cả khi đã có cache: option 2 có thể về muộn và nâng free lên paid.
+            setOnAttributionChangedListener { attribution ->
+                mainHandler.post { onOption2(attribution) }
+            }
         }
 
-        val cachedNetwork = prefs.getString(KEY_NETWORK, null)?.toOriginal()
-        val hasCachedDecision = prefs.contains(KEY_IS_FULL_AD)
+        val c = SourceClassifier(
+            store = LocalStore(app),
+            clock = { SystemClock.elapsedRealtime() },
+            schedule = { delay, block -> mainHandler.postDelayed(block, delay) },
+            timing = timing,
+            appVersion = appVersion(app),
+            onChange = { r ->
+                Log.d(TAG, "result: ${r.toJson()}")
+                adOptions?.paidCallback?.invoke(r)
+            },
+        )
+        classifier = c
 
-        if (hasCachedDecision || cachedNetwork != null) {
-            // Đã có quyết định từ lần trước.
-            network = cachedNetwork
-            isFullAd = if (hasCachedDecision) {
-                prefs.getBoolean(KEY_IS_FULL_AD, false)
-            } else {
-                cachedNetwork.isFullAds() // cache từ version cũ, chỉ có tên network
-            }
-            referrerState = if (prefs.getString(KEY_FULL_AD_SOURCE, null) == SOURCE_REFERRER) {
-                ReferrerState.DECIDED
-            } else {
-                ReferrerState.FALLBACK
-            }
-            fireCallback(fromCache = true)
-            // Đã quyết định full ads từ referrer nhưng chưa biết tên network -> hỏi Adjust bổ sung.
-            if (cachedNetwork == null && !prefs.contains(KEY_NETWORK)) {
-                callAdjustApi(context)
-                setupAttributionListener(config)
-            }
-        } else {
-            if (fullAdsOption.useReferrer) {
-                checkInstallReferrer(context)
-            } else {
-                referrerState = ReferrerState.FALLBACK
-            }
-            callAdjustApi(context)
-            setupAttributionListener(config)
-        }
+        val firstRun = c.start()
+        if (firstRun) readOption1(app, c)
+
         Adjust.initSdk(config)
-
         isInitialized = true
+
+        if (!firstRun && !c.current.isPaid) {
+            // Lần mở sau mà vẫn free: hỏi lại option 2 đã lưu trong SDK.
+            Adjust.getAttribution { attribution ->
+                mainHandler.post { onOption2(attribution) }
+            }
+        }
     }
 
     fun trackAdRevenue(value: Double, currencyCode: String) {
@@ -266,141 +237,30 @@ object AdjustBridge {
         }
     }
 
-    private fun callAdjustApi(context: Context) {
-        if (apiToken == null || appToken == null) return
-
+    private fun readOption1(context: Context, c: SourceClassifier) {
         CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val advertisingId = AdvertisingIdUtil.getAdvertisingId(context) ?: run {
-                    Log.e(TAG, "Advertising ID is null")
-                    return@launch
-                }
-
-                val response = ApiClient().inspectDevice(appToken!!, advertisingId)
-                if (response.errorMessage != null) {
-                    return@launch
-                }
-                val trackerName = response.trackerName
-                withContext(Dispatchers.Main) {
-                    onAdjustNetwork(trackerName, fromApi = true)
-                }
-            } catch (e: Exception) {
-                Log.e("CoroutineError", "Caught: ${e.message}")
-            }
+            val info = Option1Reader.read(context, timing.option1TimeoutMs)
+            withContext(Dispatchers.Main) { c.onOption1(info) }
         }
     }
 
-    private fun setupAttributionListener(config: AdjustConfig) {
-        adOptions?.fullAdCallback ?: return
-        config.setOnAttributionChangedListener { attribution ->
-            CoroutineScope(Dispatchers.Main).launch { handleAttribution(attribution) }
-        }
-    }
-
-    /**
-     * Đọc Google Play Install Referrer song song với API Adjust.
-     *  - Referrer có kết luận (organic / non-organic) -> quyết định [isFullAd] ngay,
-     *    lưu cache, bắn callback với tên network hiện có (có thể null nếu Adjust chưa về).
-     *  - Referrer lỗi / rỗng / "(not set)" -> chuyển sang FALLBACK: [isFullAd] tính từ
-     *    tên network của Adjust như trước đây.
-     * Callback KHÔNG bắn khi referrer còn PENDING để tránh báo sai rồi lật lại.
-     */
-    private fun checkInstallReferrer(context: Context) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val info = try {
-                InstallReferrerUtil.getInstallReferrer(context)
-            } catch (e: Exception) {
-                InstallReferrerInfo(null, errorMessage = "Exception: ${e.message}")
-            }
-            installReferrer = info
-            Log.d(
-                TAG,
-                "InstallReferrer: referrer=${info.referrer}, decisive=${info.isDecisive}, " +
-                        "nonOrganic=${info.isNonOrganic}, error=${info.errorMessage}"
+    private fun onOption2(attribution: AdjustAttribution?) {
+        attribution ?: return
+        classifier?.onOption2(
+            Option2Data(
+                network = attribution.network,
+                tracker = attribution.trackerName,
+                campaign = attribution.campaign,
+                adgroup = attribution.adgroup,
+                creative = attribution.creative,
             )
-
-            withContext(Dispatchers.Main) {
-                if (info.isDecisive) {
-                    referrerState = ReferrerState.DECIDED
-                    isFullAd = info.isNonOrganic
-                    saveDecision(SOURCE_REFERRER)
-                    fireCallback(fromCache = false)
-                } else {
-                    referrerState = ReferrerState.FALLBACK
-                    // Nếu Adjust đã trả tên network trong lúc chờ referrer thì quyết định luôn.
-                    if (networkFromApi || networkFromLib) {
-                        isFullAd = network.isFullAds()
-                        saveDecision(SOURCE_ADJUST)
-                        fireCallback(fromCache = false)
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Nhận tên network từ Adjust (API hoặc SDK). Chạy trên Main thread.
-     * API ưu tiên hơn SDK: khi API đã trả về thì bỏ qua SDK.
-     */
-    private fun onAdjustNetwork(trackerName: String?, fromApi: Boolean) {
-        if (!fromApi && networkFromApi) return
-        network = trackerName
-        networkFromApi = fromApi
-        networkFromLib = !fromApi
-        preferences?.edit { putString(KEY_NETWORK, trackerName.savableName()) }
-        Log.d(TAG, "Network from ${if (fromApi) "API" else "SDK"}: $trackerName")
-
-        when (referrerState) {
-            ReferrerState.PENDING -> Unit // chờ referrer quyết định rồi bắn 1 lần
-            ReferrerState.DECIDED -> fireCallback(fromCache = false) // chỉ bổ sung tên network
-            ReferrerState.FALLBACK -> {
-                isFullAd = trackerName.isFullAds()
-                saveDecision(SOURCE_ADJUST)
-                fireCallback(fromCache = false)
-            }
-        }
-    }
-
-    private fun handleAttribution(attribution: AdjustAttribution) {
-        onAdjustNetwork(attribution.network, fromApi = false)
-    }
-
-    private fun saveDecision(source: String) {
-        preferences?.edit {
-            putBoolean(KEY_IS_FULL_AD, isFullAd)
-            putString(KEY_FULL_AD_SOURCE, source)
-        }
-    }
-
-    /**
-     * Bắn [FullAdCallback].
-     *  - fromReferrer: [isFullAd] do Install Referrer quyết định.
-     *  - fromApi / fromLib: tên [network] lấy từ API / SDK Adjust (và là nguồn
-     *    quyết định [isFullAd] khi fromReferrer = false).
-     */
-    private fun fireCallback(fromCache: Boolean) {
-        adOptions?.fullAdCallback?.invoke(
-            isFullAd,
-            network,
-            fromCache,
-            networkFromLib,
-            networkFromApi,
-            referrerState == ReferrerState.DECIDED,
         )
     }
 
-    /**
-     * Lấy Google Play Install Referrer (đã cache). Trả về async qua [callback].
-     */
-    fun getInstallReferrer(context: Context, callback: (InstallReferrerInfo) -> Unit) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val info = try {
-                InstallReferrerUtil.getInstallReferrer(context)
-            } catch (e: Exception) {
-                InstallReferrerInfo(null, errorMessage = "Exception: ${e.message}")
-            }
-            installReferrer = info
-            withContext(Dispatchers.Main) { callback(info) }
-        }
+    private fun appVersion(context: Context): String? = try {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        "${info.versionName}+${PackageInfoCompat.getLongVersionCode(info)}"
+    } catch (e: Exception) {
+        null
     }
 }

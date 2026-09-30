@@ -4,8 +4,8 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.adjust.helper.model.AdOptions
-import com.adjust.helper.model.FullAdsOption
 import com.adjust.helper.model.IapOptions
+import com.adjust.helper.model.SourceResult
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -26,28 +26,22 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                 val appToken = call.argument<String>("appToken")
 
                 if (environment != null && appToken != null) {
-                    val fullAdsOption = call.argument<Map<String, Any?>>("fullAdsOption")
                     AdjustBridge.apply {
                         this.environment = environment
                         this.appToken = appToken
-                        this.fullAdsOption = FullAdsOption.fromMap(fullAdsOption ?: emptyMap())
-                        this.apiToken = call.argument<String>("apiToken")
+                        this.timing = SourceClassifier.Timing().let { d ->
+                            SourceClassifier.Timing(
+                                trustAfterMs = call.longArg("trustAfterMs") ?: d.trustAfterMs,
+                                waitMaxMs = call.longArg("waitMaxMs") ?: d.waitMaxMs,
+                                option1TimeoutMs = call.longArg("option1TimeoutMs") ?: d.option1TimeoutMs,
+                            )
+                        }
                         this.adOptions = AdOptions(
                             impressionToken = call.argument<String>("impressionToken"),
                             event80Token = call.argument<String>("event80Token"),
-                            fullAdCallback = { isFullAds, network, fromCache, fromLib, fromApi, fromReferrer ->
+                            paidCallback = { r ->
                                 mainHandler.post {
-                                    channel.invokeMethod(
-                                        "onFullAdCallback",
-                                        mapOf(
-                                            "isFullAds" to isFullAds,
-                                            "network" to network,
-                                            "fromCache" to fromCache,
-                                            "fromLib" to fromLib,
-                                            "fromApi" to fromApi,
-                                            "fromReferrer" to fromReferrer,
-                                        )
-                                    )
+                                    channel.invokeMethod("onPaidCallback", r.toChannelMap())
                                 }
                             }
                         )
@@ -137,10 +131,8 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
                 }
             }
 
-            "getInstallReferrer" -> {
-                AdjustBridge.getInstallReferrer(context) { info ->
-                    result.success(info.toMap())
-                }
+            "getPaidResult" -> {
+                result.success(AdjustBridge.result?.toChannelMap())
             }
 
             else -> {
@@ -149,4 +141,15 @@ class AdjustChannel(private val context: Context, messenger: BinaryMessenger) :
 
         }
     }
+
+    // Dart int có thể về Integer hoặc Long -> đọc qua Number cho an toàn.
+    private fun MethodCall.longArg(key: String): Long? = (argument<Any>(key) as? Number)?.toLong()
+
+    private fun SourceResult.toChannelMap(): Map<String, Any?> = mapOf(
+        "isPaid" to isPaid,
+        "isFinal" to isFinal,
+        "done" to done,
+        "network" to network,
+        "json" to toJson().toString(),
+    )
 }
