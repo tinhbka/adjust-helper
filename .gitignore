@@ -13,3 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+/dist
+/ADJUST_HELPER_UPDATE_GUIDE.md
